@@ -28,37 +28,43 @@ class Rundeck():
         p = {'j_username': self.username, 'j_password': self.password}
         # Disable redirects, otherwise we get redirected twice and need to
         # return r.history[0].cookies['JSESSIONID']
-        r = requests.post(url, params=p, verify=self.verify, allow_redirects=False)
+        r = requests.post(url, data=p, verify=self.verify, allow_redirects=False)
         return r.cookies['JSESSIONID']
 
-    def __request(self, method, url, params=None):
-        logger.info('{} {} Params: {}'.format(method, url, params))
+    def __request(self, method, url, data=None, params=None, additionnal_headers=None):
+        logger.info('{} {} data: {} Additionnal_headers {}'.format(method, url, data, additionnal_headers))
         cookies = {'JSESSIONID': self.auth_cookie}
         h = {
             'Accept': 'application/json',
             'Content-Type': 'application/json',
             'X-Rundeck-Auth-Token': self.token
         }
+        if additionnal_headers is not None:
+            h.update(additionnal_headers)
         r = requests.request(
-            method, url, cookies=cookies, headers=h, json=params,
+            method, url, cookies=cookies, headers=h, json=data, params=params,
             verify=self.verify
         )
-        logger.debug(r.content)
         r.raise_for_status()
-        try:
-            return r.json()
-        except ValueError as e:
-            logger.error(e.message)
+        if r.headers['Content-Type'].split(';')[0] in ['text/xml', 'application/xml', 'application/json']:
+            # Try to parse json only if xml or json is returned
+            logger.debug(r.content)
+            try:
+                return r.json()
+            except ValueError as e:
+                logger.error(e.message)
+                return r.content
+        else:
             return r.content
 
-    def __get(self, url, params=None):
-        return self.__request('GET', url, params)
+    def __get(self, url, data=None, params=None, additionnal_headers=None):
+        return self.__request('GET', url, data, params, additionnal_headers)
 
-    def __post(self, url, params=None):
-        return self.__request('POST', url, params)
+    def __post(self, url, data=None, params=None, additionnal_headers=None):
+        return self.__request('POST', url, data, params, additionnal_headers)
 
-    def __delete(self, url, params=None):
-        return self.__request('DELETE', url, params)
+    def __delete(self, url, data=None, params=None, additionnal_headers=None):
+        return self.__request('DELETE', url, data, params, additionnal_headers)
 
     def list_tokens(self, user=None):
         url = '{}/tokens'.format(self.API_URL)
@@ -124,13 +130,13 @@ class Rundeck():
     def run_job(self, job_id, args=None, log_level=None, as_user=None,
                 node_filter=None):
         url = '{}/job/{}/run'.format(self.API_URL, job_id)
-        params = {
+        data = {
             'argString': args,
             'logLevel': log_level,
             'asUser': as_user,
             'filter': node_filter
         }
-        return self.__post(url, params=params)
+        return self.__post(url, data=data)
 
     def run_job_by_name(self, name, args=None, log_level=None, as_user=None,
                         node_filter=None):
@@ -139,6 +145,32 @@ class Rundeck():
 
     def list_running_executions(self, project):
         url = '{}/project/{}/executions/running'.format(self.API_URL, project)
+        return self.__get(url)
+
+    def archive_export_async(self, project, exportAll=True, exportJobs=True, exportExecutions=True, exportConfigs=True, exportReadmes=True, exportAcls=True):
+        url = '{}/project/{}/export/async'.format(self.API_URL, project)
+        headers = {
+            'Content-Type': 'text/plain' # In API v20, this fails when application/json is set
+        }
+        params = {
+            'exportAll': exportAll,
+            'exportJobs': exportJobs,
+            'exportExecutions': exportExecutions,
+            'exportConfigs': exportConfigs,
+            'exportReadmes': exportReadmes,
+            'exportAcls': exportAcls
+        }
+        return self.__get(url, params=params, additionnal_headers=headers)
+
+    def archive_export_status(self, project, archive_token):
+        url = '{}/project/{}/export/status/{}'.format(self.API_URL, project, archive_token)
+        return self.__get(url)
+
+    def archive_export_download(self, project, archive_token):
+        url = '{}/project/{}/export/download/{}'.format(self.API_URL, project, archive_token)
+        h = {
+            'Accept': 'application/zip' # In API v20, this fails when application/json is set
+        }
         return self.__get(url)
 
 
