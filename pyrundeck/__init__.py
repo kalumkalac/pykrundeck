@@ -1,1 +1,1 @@
-from rundeck import Rundeck
+from .rundeck import Rundeck

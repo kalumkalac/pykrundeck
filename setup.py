@@ -24,13 +24,13 @@ def requirements(requirements_file='requirements.txt'):
 
 
 setup(
-    name='pyrundeck',
-    version='0.9',
+    name='pykrundeck',
+    version='0.92.1',
     description='Python REST API client for Rundeck 2.6+',
     long_description=read('README.md'),
-    author='Philipp Schmitt',
-    author_email='philipp.schmitt@post.lu',
-    url='https://github.com/pschmitt/pyrundeck',
+    author='kalumkalac',
+    author_email='delovan@gmail.com',
+    url='https://github.com/kalumkalac/pyrundeck',
     packages=find_packages(),
     include_package_data=True,
     install_requires=requirements(),
